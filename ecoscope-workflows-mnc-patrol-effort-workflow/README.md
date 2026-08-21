@@ -5,32 +5,35 @@
 
 ```yaml
 # fingerprint:
-artifacts_sha256_basic: edc35b687dce4d763e310efcf48a5fb00126083f8fd730742cfc20c92c31507f
-artifacts_sha256_strict: b8f29fac83952349b176890b53b812fa74aef60ac0a7a2867ff15dd57c34a2f1
+artifacts_sha256_basic: afc8d36c7ac9644e49aa324bb9523a247584a18b95f657ff11d931b254dcc15a
+artifacts_sha256_strict: d101aef350ad9270e2c8abb7c97620da0040f95458285ffb26e0e7293c4f7b37
 installed_requirements:
 - channel: https://repo.prefix.dev/ecoscope-workflows/
-  name: ecoscope-workflows-core
-  version: {version: ==0.22.18}
-- channel: https://repo.prefix.dev/ecoscope-workflows/
-  name: ecoscope-workflows-ext-ecoscope
-  version: {version: ==0.22.18}
+  name: ecoscope-platform
+  version: {version: ==2.15.1}
 - channel: https://repo.prefix.dev/ecoscope-workflows-custom/
   name: ecoscope-workflows-ext-custom
-  version: {version: ==0.0.49}
+  version: {version: ==0.1.0rc14}
 - channel: https://repo.prefix.dev/ecoscope-workflows-custom/
   name: ecoscope-workflows-ext-ste
-  version: {version: ==0.0.20}
+  version: {version: ==0.0.0rc1}
 - channel: https://repo.prefix.dev/ecoscope-workflows-custom/
-  name: ecoscope-workflows-ext-mep
-  version: {version: ==0.0.19}
+  name: ecoscope-workflows-ext-wwf-virunga
+  version: {version: ==0.0.0rc9}
 - channel: https://repo.prefix.dev/ecoscope-workflows-custom/
   name: ecoscope-workflows-ext-big-life
-  version: {version: ==0.0.11}
+  version: {version: ==1.0.1}
 - channel: https://repo.prefix.dev/ecoscope-workflows-custom/
   name: ecoscope-workflows-ext-mnc
-  version: {version: ==0.0.10}
-params_sha256: 3ab4c0f59c459fe3feea277da14ef6a8b3d0dfc0f958f3f015ddd4d700bcc5f8
-spec_sha256: 7e6e19e84f9e4afad273e6537b5e7921c470d3ae9c1eb1b32e4525b54588512e
+  version: {version: ==1.0.2}
+- channel: conda-forge
+  name: pydeck
+  version: {version: ==0.9.2}
+- channel: conda-forge
+  name: opentelemetry-sdk
+  version: {version: ==1.44.0}
+params_sha256: 8ec66f689124f09fdc0b9e58fd0668d6d6a9a023df19834cdf059202d17289b4
+spec_sha256: 212eb87ed653e235db45e417191ee2c6640dd3d464534f4b076a9a4088610026
 
 ```
 

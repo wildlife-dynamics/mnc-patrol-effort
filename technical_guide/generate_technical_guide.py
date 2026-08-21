@@ -120,8 +120,8 @@ story += [
     p("MNC Patrol Effort", TITLE),
     p("Technical Guide", SUBTITLE),
     sp(4),
-    p("Patrol trajectory mapping, effort summaries, and coverage analysis "
-      "for Mara North Conservancy", SUBTITLE),
+    p("Patrol trajectory analysis, effort summaries, coverage mapping, and "
+      "dashboard reporting for Mara North Conservancy", SUBTITLE),
     sp(4),
     p(f"Generated {date.today().strftime('%B %d, %Y')}", META),
     p("Workflow id: <b>mnc_patrol_effort</b>", META),
@@ -134,36 +134,35 @@ story += [
 story += [
     h1("1. Overview"),
     hr(),
-    p("The <b>mnc_patrol_effort</b> workflow fetches <b>patrol_info</b> events "
-      "and linked patrol observations from EarthRanger for a specified time "
-      "window. It converts observations into relocations and trajectories, "
-      "splits by transport type (foot, vehicle, motorbike), and produces "
-      "per-type effort summaries, trajectory maps, and a combined patrol "
-      "coverage grid."),
+    p("The <b>mnc_patrol_effort</b> workflow fetches all events and linked "
+      "patrol observations from EarthRanger for a specified time window. It "
+      "converts patrol observations into relocations and trajectories, "
+      "splits them by transport type (foot, vehicle, motorbike), and "
+      "produces per-type effort summaries, coverage-grid maps, an overall "
+      "conservancy occupancy calculation, and a results dashboard."),
     sp(4),
     p("The workflow delivers:"),
     bullet("<b>total_events_recorded_by_date.csv</b> / "
-           "<b>total_events_recorded_by_type.csv</b> — all event counts for "
+           "<b>total_events_recorded_by_type.csv</b> — event counts for "
            "the period"),
     bullet("<b>total_events_recorded.html/.png</b> — daily events line chart"),
-    bullet("<b>patrol_purpose_summary.csv</b> — patrol count and distance by "
-           "patrol purpose"),
+    bullet("<b>patrol_events.csv</b> — flattened patrol_info event details"),
+    bullet("<b>patrol_purpose_summary.csv</b> — patrol count by patrol purpose"),
     bullet("<b>patrol_relocations.geoparquet</b> — full observation dataset "
            "with patrol metadata"),
     bullet("<b>foot_patrol_efforts.csv</b> / <b>vehicle_patrol_efforts.csv</b> "
            "/ <b>motorbike_patrol_efforts.csv</b> — per-type effort summaries"),
-    bullet("<b>foot_patrol_trajectories.geojson</b> / "
-           "<b>vehicle_patrol_trajectories.geojson</b> / "
-           "<b>motor_patrol_trajectories.geojson</b> — trajectory GeoJSON files"),
-    bullet("<b>foot_patrols_map.html/.png</b> / <b>vehicle_patrols_map.html/.png</b> "
-           "/ <b>motorbike_patrols_map.html/.png</b> — trajectory maps"),
-    bullet("<b>patrol_trajectories.geoparquet</b> — merged trajectory dataset "
-           "(foot + vehicle + motorbike)"),
+    bullet("<b>foot_patrol_map.html/.png</b> / <b>vehicle_patrol_map.html/.png</b> "
+           "/ <b>motor_patrol_map.html/.png</b> — per-type coverage-grid maps"),
+    bullet("<b>patrol_trajectories.geoparquet</b> — reprojected overall "
+           "coverage grid (foot + vehicle + motorbike combined)"),
     bullet("<b>overall_patrol_efforts.csv</b> — per-ranger summary"),
-    bullet("<b>patrol_coverage_map.html/.png</b> — 1 000 m grid-cell visit "
-           "density map"),
+    bullet("<b>overall_patrol_map.html/.png</b> — combined 1 000 m grid-cell "
+           "visit density map"),
     bullet("<b>patrol_coverage.csv</b> — patrol occupancy percentage per "
            "conservancy region"),
+    bullet("A <b>results dashboard</b> assembling the four maps, the events "
+           "chart, and the three summary tables"),
     sp(6),
     h2("Output summary"),
     make_table(
@@ -175,34 +174,30 @@ story += [
              "Daily event counts broken down by event type"],
             ["total_events_recorded.html / .png",
              "Line chart of daily event totals"],
+            ["patrol_events.csv",
+             "Flattened patrol_info event details"],
             ["patrol_purpose_summary.csv",
-             "Patrol count and distance km grouped by patrol purpose"],
+             "Patrol count grouped by patrol purpose"],
             ["patrol_relocations.geoparquet",
              "All patrol observations with full patrol metadata"],
             ["foot_patrol_efforts.csv",
              "Foot patrol metrics: count, distance, duration, average speed"],
-            ["foot_patrol_trajectories.geojson",
-             "Foot patrol trajectory line geometries (filtered columns)"],
-            ["foot_patrols_map.html / .png",
-             "Foot trajectory map coloured by patrol type"],
+            ["foot_patrol_map.html / .png",
+             "Foot patrol coverage-grid map"],
             ["vehicle_patrol_efforts.csv",
              "Vehicle patrol metrics: count, distance, duration, average speed"],
-            ["vehicle_patrol_trajectories.geojson",
-             "Vehicle patrol trajectory line geometries (filtered columns)"],
-            ["vehicle_patrols_map.html / .png",
-             "Vehicle trajectory map coloured by patrol type"],
+            ["vehicle_patrol_map.html / .png",
+             "Vehicle patrol coverage-grid map"],
             ["motorbike_patrol_efforts.csv",
              "Motorbike patrol metrics: count, distance, duration, average speed"],
-            ["motor_patrol_trajectories.geojson",
-             "Motorbike patrol trajectory line geometries (filtered columns)"],
-            ["motorbike_patrols_map.html / .png",
-             "Motorbike trajectory map coloured by patrol type"],
+            ["motor_patrol_map.html / .png",
+             "Motorbike patrol coverage-grid map"],
             ["patrol_trajectories.geoparquet",
-             "Merged foot + vehicle + motorbike trajectories"],
+             "Reprojected overall coverage grid (foot + vehicle + motorbike)"],
             ["overall_patrol_efforts.csv",
              "Per-ranger patrol count, distance km, duration hrs"],
-            ["patrol_coverage_map.html / .png",
-             "Grid-cell visit density map (RdYlGn_r, equal-interval 5 bins)"],
+            ["overall_patrol_map.html / .png",
+             "Combined grid-cell visit density map (RdYlGn, equal-interval 5 bins)"],
             ["patrol_coverage.csv",
              "Patrol occupancy percentage per conservancy region"],
         ],
@@ -217,19 +212,29 @@ story += [
 story += [
     h1("2. Dependencies"),
     hr(),
-    h2("2.1  Python packages"),
+    h2("2.1  Requirements (spec.yaml)"),
     make_table(
         [
             ["Package", "Version", "Channel"],
-            ["ecoscope-workflows-core",        "0.22.17.*", "ecoscope-workflows"],
-            ["ecoscope-workflows-ext-ecoscope","0.22.17.*", "ecoscope-workflows"],
-            ["ecoscope-workflows-ext-custom",  "0.0.45.*",  "ecoscope-workflows-custom"],
-            ["ecoscope-workflows-ext-ste",     "0.0.19.*",  "ecoscope-workflows-custom"],
-            ["ecoscope-workflows-ext-mep",     "0.0.14.*",  "ecoscope-workflows-custom"],
-            ["ecoscope-workflows-ext-mnc",     "0.0.8.*",   "ecoscope-workflows-custom"],
+            ["ecoscope-platform",               ">=2.15.0, <2.16.0",
+             "repo.prefix.dev/ecoscope-workflows"],
+            ["ecoscope-workflows-ext-custom",    "0.1.0rc14.*",
+             "repo.prefix.dev/ecoscope-workflows-custom"],
+            ["ecoscope-workflows-ext-ste",       "0.0.0rc1.*",
+             "repo.prefix.dev/ecoscope-workflows-custom"],
+            ["ecoscope-workflows-ext-wwf-virunga","0.0.0rc9.*",
+             "repo.prefix.dev/ecoscope-workflows-custom"],
+            ["ecoscope-workflows-ext-big-life",  "1.0.1.*",
+             "repo.prefix.dev/ecoscope-workflows-custom"],
+            ["ecoscope-workflows-ext-mnc",       "1.0.2.*",
+             "repo.prefix.dev/ecoscope-workflows-custom"],
+            ["pydeck",                            "0.9.2",         "conda-forge"],
+            ["opentelemetry-sdk",                 ">=1.20.0, <2.0.0", "conda-forge"],
         ],
-        [6.5*cm, 3*cm, W - 9.5*cm],
+        [6*cm, 3.2*cm, W - 9.2*cm],
     ),
+    note("ecoscope-workflows-ext-wwf-virunga is declared as a requirement but "
+         "none of its tasks are referenced in spec.yaml."),
     sp(6),
     h2("2.2  Connections"),
     make_table(
@@ -238,9 +243,9 @@ story += [
             ["EarthRanger", "set_er_connection",
              "Fetch event records and patrol observations; passed to "
              "get_events, get_patrol_values, and "
-             "custom_get_patrol_observations_from_patrols_df."],
+             "get_patrol_observations_from_patrols_df."],
             ["Dropbox (HTTP)", "fetch_and_persist_file",
-             "Download MNC community conservancy boundary gpkg and MNC "
+             "Download the MNC community conservancy boundary gpkg and MNC "
              "parcels gpkg. Downloads are skipped if the file already "
              "exists (overwrite_existing: false)."],
         ],
@@ -250,8 +255,15 @@ story += [
     h2("2.3  Grouper"),
     p("The workflow uses an <b>empty grouper list</b> (groupers: []). "
       "All data are processed as a single undivided dataset. The grouper "
-      "is threaded through temporal-index steps and the dashboard only — "
+      "is threaded through the temporal-index steps and the dashboard only — "
       "it produces no fan-out branching."),
+    sp(6),
+    h2("2.4  Skip conditions"),
+    p("<b>task-instance-defaults.skipif</b> applies two conditions to every "
+      "task instance in the workflow by default: <b>any_is_empty_df</b> "
+      "(skip if any upstream DataFrame input is empty) and "
+      "<b>any_dependency_skipped</b> (skip if any upstream task was itself "
+      "skipped, propagating the skip state through dependent branches)."),
     PageBreak(),
 ]
 
@@ -262,11 +274,9 @@ story += [
     h1("3. Geospatial Asset Pipeline"),
     hr(),
     p("Before any event data is fetched, the workflow downloads and prepares "
-      "two GeoPackage boundary files used as background layers on all maps. "
-      "These assets are shared across the foot, vehicle, motorbike, and "
-      "coverage map sections."),
+      "the two GeoPackage boundary files used as background layers on every "
+      "map, and precomputes the map view state shared by all of them."),
     sp(6),
-    h2("3.1  MNC community conservancy boundary"),
     make_table(
         [
             ["Step", "Task / id", "Detail"],
@@ -274,567 +284,493 @@ story += [
              "Download mnc_conservancy.gpkg from Dropbox. "
              "overwrite_existing: false — skipped on subsequent runs if "
              "the file is already present."],
-            ["2", "load_df\nload_comm_shp",
-             "Load the GeoPackage into a GeoDataFrame."],
-            ["3", "split_gdf_by_column\nsplit_gdf_by_zone",
-             "Split the loaded GDF into a dict keyed by the "
-             "<b>grazing_zone</b> column value."],
-            ["4", "ecoscope_workflows_ext_ste.tasks.annotate_gdf_dict_with_geom_type\n"
-             "annotate_comm_gdf_dict",
-             "Annotate each sub-GDF in the dict with its geometry type."],
-            ["5", "create_deckgl_layers_from_gdf_dict\ncreate_mnc_styled_layers",
-             "Build styled DeckGL layers for Conservancy, Conservancy Herd Zone, "
-             "and Grazing Zones 1–4 with distinct fill colours."],
-            ["6", "create_deckgl_layers_from_gdf_dict\ncreate_conservancy_boundaries",
-             "Build a boundary-only layer (grey outline, no fill) used as a "
-             "clean boundary overlay on all patrol maps."],
-            ["7", "create_gdf_from_dict\nconservancy_gdf",
-             "Extract the 'Conservancy' sub-GDF for use in the "
-             "coverage occupancy calculation and text label."],
-            ["8", "filter_df\noverall_grazing_zones",
-             "Filter to rows where grazing_zone ≠ 'Conservancy' — "
-             "the grazing zone polygons used to compute the global map zoom."],
-            ["9", "create_custom_text_layer\nconservancy_text_layer",
-             "Build a text label layer centred on each conservancy polygon "
-             "(Calibri Bold, size 1 500 m, min 70 px)."],
+            ["2", "fetch_and_persist_file\ndownload_mnc_parcels",
+             "Download mnc_across_the_river_parcels.gpkg from Dropbox."],
+            ["3", "load_df\nload_comm_shp",
+             "Load the conservancy GeoPackage into a GeoDataFrame."],
+            ["4", "ecoscope_workflows_ext_mnc.tasks.transformation.\n"
+             "fix_invalid_geometries\nfix_comm_geom",
+             "Repair invalid geometries (e.g. self-intersecting polygons) "
+             "using shapely's make_valid()."],
+            ["5", "filter_df\nfilter_conservancy_boundary",
+             "Filter to rows where grazing_zone = 'Conservancy'. Used as "
+             "the area-of-interest (AOI) for every coverage grid and for "
+             "the occupancy calculation."],
+            ["6", "filter_df\nfilter_mara_north",
+             "Filter to rows where name = 'Mara North Conservancy'. Used "
+             "only to compute the shared map view state."],
+            ["7", "load_df\nload_mnc_parcels",
+             "Load the parcels GeoPackage."],
+            ["8", "ecoscope_workflows_ext_custom.tasks.results.\n"
+             "create_geojson_layer\ncreate_conservancy_layer / "
+             "create_parcels_layer",
+             "Build the two static map layers reused as background on "
+             "every patrol/coverage map: a grey conservancy boundary "
+             "outline and a dark-khaki parcels fill."],
+            ["9", "ecoscope_workflows_ext_ste.tasks.spatial_operations.\n"
+             "envelope_gdf\nzoom_to_envelope",
+             "Compute the bounding envelope of filter_mara_north."],
+            ["10", "ecoscope_workflows_ext_ste.tasks.spatial_operations.\n"
+             "compute_view_state_from_gdf\ngdf_image_extent",
+             "Compute a zoom level and centre point from that envelope "
+             "(pitch: 0, bearing: 0, max_zoom: 15). Reused unchanged for "
+             "every draw_map call in the workflow."],
         ],
-        [0.5*cm, 4*cm, W - 4.5*cm],
+        [0.7*cm, 4.3*cm, W - 5*cm],
     ),
+    PageBreak(),
+]
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 4. EVENTS SUMMARY
+# ══════════════════════════════════════════════════════════════════════════════
+story += [
+    h1("4. Events Summary"),
+    hr(),
+    p("A single <b>get_events</b> call (id: <b>get_events_data</b>) fetches "
+      "all event types for the analysis period, with columns id, time, "
+      "event_type, event_category, reported_by, serial_number, geometry, "
+      "created_at, event_details, and patrols. include_details: true, "
+      "raise_on_empty: true, force_point_geometry: true. The result feeds "
+      "two branches: this events summary, and the patrol_info / "
+      "observations pipeline in Sections 5–6."),
     sp(6),
-    h2("3.2  MNC parcels"),
+    h2("4.1  Date extraction, temporal indexing, and exclusion"),
     make_table(
         [
             ["Step", "Task / id", "Detail"],
-            ["1", "fetch_and_persist_file\ndownload_mnc_parcels",
-             "Download mnc_across_the_river_parcels.gpkg from Dropbox."],
-            ["2", "load_df\nload_mnc_parcels",
-             "Load the parcels GeoPackage."],
-            ["3", "ecoscope_workflows_ext_ste.tasks.get_gdf_geom_type\n"
-             "assign_mnc_geom",
-             "Assign the geometry type to the parcels GDF."],
-            ["4", "create_deckgl_layer_from_gdf\ncreate_mnc_parcels_layers",
-             "Build a styled layer: dark-khaki fill (#bdb76b), opacity 0.15, "
-             "labelled 'Parcels' in the legend."],
-        ],
-        [0.5*cm, 4*cm, W - 4.5*cm],
-    ),
-    sp(6),
-    h2("3.3  Global map view state"),
-    p("The task <b>view_state_deck_gdf</b> (id: <b>global_zoom_value</b>) "
-      "computes a zoom level and centre point from the "
-      "<b>overall_grazing_zones</b> GDF (grazing zone polygons only, "
-      "pitch: 0, bearing: 0). This view state is reused unchanged "
-      "for all patrol maps and the coverage map."),
-    PageBreak(),
-]
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 4. EVENT INGESTION PIPELINE
-# ══════════════════════════════════════════════════════════════════════════════
-story += [
-    h1("4. Event Ingestion Pipeline"),
-    hr(),
-    p("A single <b>get_events</b> call fetches all event types for the analysis "
-      "period. The resulting DataFrame is used in two parallel branches: the "
-      "events summary charts/tables (Section 5) and the patrol info / "
-      "observations pipeline (Sections 6–11)."),
-    sp(6),
-    h2("4.1  Event retrieval"),
-    make_table(
-        [
-            ["Parameter", "Value"],
-            ["Task",             "get_events (id: get_events_data)"],
-            ["event_types",      "[] — all event types are fetched"],
-            ["Columns retained", "id, time, event_type, event_category, "
-                                 "reported_by, serial_number, geometry, "
-                                 "created_at, event_details, patrols"],
-            ["include_details",      "true"],
-            ["include_display_values", "false"],
-            ["raise_on_empty",        "true"],
-            ["include_null_geometry", "false"],
-            ["include_updates",           "false"],
-            ["include_related_events",    "false"],
-        ],
-        [5*cm, W - 5*cm],
-    ),
-    note("All event types are retrieved together in a single call. Downstream "
-         "filter_df steps isolate the specific event types needed by each "
-         "branch (patrol_info for the observations pipeline; all others for "
-         "the events summary)."),
-    sp(6),
-    h2("4.2  Date extraction and temporal indexing"),
-    make_table(
-        [
-            ["Step", "Task", "Detail"],
             ["1", "extract_column_as_type\nextract_event_date",
-             "Extract the <b>time</b> column as <b>output_type: date</b>, "
-             "writing the result into a new <b>date</b> column."],
+             "Extract the <b>time</b> column as <b>output_type: date</b> "
+             "into a new <b>date</b> column."],
             ["2", "add_temporal_index\nevents_temporal",
-             "Add a temporal index keyed on the <b>date</b> column, "
-             "using the empty grouper list. "
-             "cast_to_datetime: true, format: mixed."],
+             "Add a temporal index keyed on <b>date</b>, using the empty "
+             "grouper list. cast_to_datetime: true, format: mixed."],
+            ["3", "exclude_row_values\nfilter_events",
+             "Remove rows where event_type is any of: "
+             "distancecountwildlife_rep, distancecountpatrol_rep, "
+             "airstrip_operations."],
         ],
-        [0.5*cm, 4*cm, W - 4.5*cm],
+        [0.7*cm, 4*cm, W - 4.7*cm],
     ),
-    PageBreak(),
-]
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 5. EVENTS SUMMARY
-# ══════════════════════════════════════════════════════════════════════════════
-story += [
-    h1("5. Events Summary"),
-    hr(),
-    p("This branch works from <b>events_temporal</b> and produces three output "
-      "files summarising all events recorded in the period, excluding a small "
-      "set of specialised event types."),
     sp(6),
-    h2("5.1  Event type exclusion"),
-    p("The task <b>exclude_row_values</b> (id: <b>filter_events</b>) removes "
-      "rows where <b>event_type</b> is any of:"),
-    bullet("distancecountwildlife_rep"),
-    bullet("distancecountpatrol_rep"),
-    bullet("airstrip_operations"),
-    bullet("silence_source_rep"),
-    note("These four types are handled by dedicated workflows "
-         "(wildlife distance count, logistics) and are excluded here to "
-         "avoid double-counting in the events summary."),
-    sp(6),
-    h2("5.2  Summaries and chart"),
+    h2("4.2  Summaries, chart, and widget"),
     make_table(
         [
             ["Output", "Task / id", "Logic"],
             ["total_events_recorded_by_date.csv",
-             "summarize_df\ntotal_events_recorded\n→ add_totals_row\nadd_total_events_row\n→ persist_df\npersist_tevents_df",
-             "Group by <b>date</b>, count unique <b>id</b> → <b>no_of_events</b>. "
-             "Add a 'Total' row. Persist as CSV."],
+             "summarize_df\ntotal_events_recorded\n→ persist_df\npersist_tevents_df",
+             "Group by <b>date</b>, count unique <b>id</b> → "
+             "<b>no_of_events</b>. Persist as CSV."],
             ["total_events_recorded_by_type.csv",
-             "summarize_df\ntotal_events_type_recorded\n→ persist_df\npersist_summary_event_type",
-             "Group by <b>date</b> and <b>event_type</b>, count unique <b>id</b> "
-             "→ <b>no_of_events</b>. Persist as CSV."],
+             "summarize_df\ntotal_events_type_recorded\n→ persist_df\n"
+             "persist_summary_event_type",
+             "Group by <b>date</b> and <b>event_type</b>, count unique "
+             "<b>id</b>. Persist as CSV."],
             ["total_events_recorded.html / .png",
-             "draw_line_chart\ndraw_events_chart\n→ persist_text\npersist_total_events\n→ html_to_png\nconvert_tevents_png",
-             "Line chart: x = date, y = no_of_events, colour = lightsteelblue, "
-             "no legend. device_scale_factor: 2.0, full_page: false."],
+             "draw_line_chart\ndraw_events_chart\n→ persist_text\n"
+             "persist_total_events\n→ html_to_png\nconvert_events_chart_png",
+             "Line chart: x = date, y = no_of_events, colour "
+             "lightsteelblue, no legend. width 1280 / height 720, "
+             "device_scale_factor 2.0, wait_for_timeout 10 ms."],
+            ["Dashboard widget",
+             "create_plot_widget_single_view\nevents_chart_widget",
+             "Title: 'Total Events Recorded'. Wraps the persisted chart "
+             "HTML for the results dashboard."],
         ],
-        [3.5*cm, 3.5*cm, W - 7*cm],
+        [3.3*cm, 3.7*cm, W - 7*cm],
     ),
     PageBreak(),
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 6. PATROL PURPOSE SUMMARY
+# 5. PATROL PURPOSE SUMMARY
 # ══════════════════════════════════════════════════════════════════════════════
 story += [
-    h1("6. Patrol Purpose Summary"),
+    h1("5. Patrol Purpose Summary"),
     hr(),
     p("This branch isolates <b>patrol_info</b> events from "
       "<b>events_temporal</b>, flattens their event details, and produces a "
-      "per-purpose summary table."),
+      "per-purpose summary table and dashboard widget."),
     sp(6),
     make_table(
         [
             ["Step", "Task / id", "Detail"],
             ["1", "filter_df\nfilter_patrol_info_events",
              "Keep rows where event_type = 'patrol_info'."],
-            ["2", "normalize_json_column\nnormalize_pi_values",
-             "Flatten the <b>event_details</b> JSON column "
+            ["2", "process_events_details\nprocess_patrol_events",
+             "Flatten event details. map_to_titles: true, ordered: true."],
+            ["3", "normalize_json_column\nnormalize_patrols",
+             "Normalize the <b>event_details</b> JSON column "
              "(skip_if_not_exists: true, sort_columns: true)."],
-            ["3", "map_columns\nrename_patrol_info",
-             "Rename flattened columns:\n"
-             "event_details__patrolinfomation_participants → participants\n"
-             "event_details__patrolinfomation_patrolpurpose → purpose\n"
-             "event_details__patrolinfomation_personwhoauthorised → authorized_by\n"
-             "event_details__patrolinfomation_transporttype → transport_type\n"
-             "patrols → patrol_id"],
-            ["4", "summarize_df\npatrol_info_summary",
-             "Group by <b>purpose</b>. Aggregate:\n"
-             "no_of_patrols = nunique(id)\n"
-             "distance_km = sum(dist_meters) converted m → km"],
-            ["5", "capitalize_text\ncapitalize_patrol_text",
-             "Capitalize the <b>purpose</b> column values."],
-            ["6", "add_totals_row\ninclude_pat_totals",
-             "Add a 'Total' row labelled by the <b>purpose</b> column."],
-            ["7", "persist_df\npersist_patrol_df",
+            ["4", "drop_column_prefix\ndrop_patrol_prefix",
+             "Drop the <b>event_details__</b> prefix from column names "
+             "(duplicate_strategy: keep_original)."],
+            ["5", "persist_df\npersist_events",
+             "Write the flattened patrol events to <b>patrol_events.csv</b>."],
+            ["6", "map_columns\nrename_patrol_info",
+             "Rename columns: patrols → patrol_id, Participants → "
+             "participants, Patrol Purpose → patrol_purpose, "
+             "Transport Type → transport_type."],
+            ["7", "summarize_df\npatrol_info_summary",
+             "Group by <b>patrol_purpose</b>. number_of_patrols = "
+             "nunique(id), 0 decimal places."],
+            ["8", "persist_df\npersist_patrol_df",
              "Write to <b>patrol_purpose_summary.csv</b>."],
+            ["9", "draw_table\npatrol_summary_table_html\n→ persist_text\n"
+             "patrol_summary_table_url\n→ create_table_widget_single_view\n"
+             "patrol_summary_table_widget",
+             "Render patrol_info_summary as an HTML table (sorting and "
+             "filtering enabled, download disabled), persist it, and wrap "
+             "it in a dashboard widget titled 'Patrol Purpose Summary'."],
         ],
-        [0.5*cm, 3.5*cm, W - 4*cm],
+        [0.7*cm, 3.5*cm, W - 4.2*cm],
     ),
     PageBreak(),
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 7. PATROL OBSERVATIONS PIPELINE
+# 6. PATROL OBSERVATIONS PIPELINE
 # ══════════════════════════════════════════════════════════════════════════════
 story += [
-    h1("7. Patrol Observations Pipeline"),
+    h1("6. Patrol Observations Pipeline"),
     hr(),
-    p("Starting from the renamed patrol info DataFrame (id: "
-      "<b>rename_patrol_info</b>), this pipeline enriches, expands, and "
-      "fetches patrol observation points from EarthRanger, merges them with "
-      "patrol metadata, and converts them into relocations for trajectory "
-      "building."),
+    p("Starting from <b>rename_patrol_info</b>, this pipeline expands, "
+      "fetches, and merges patrol observation points from EarthRanger with "
+      "patrol metadata, and converts the result into relocations for "
+      "trajectory building."),
     sp(6),
-    h2("7.1  Participant name mapping and patrol ID preparation"),
     make_table(
         [
             ["Step", "Task / id", "Detail"],
-            ["1", "map_name_values\nrename_participants",
-             "Apply site-specific name normalisation to the "
-             "<b>participants</b> column."],
-            ["2", "filter_non_empty_values\nfilter_null_patrols",
-             "Remove rows where <b>patrol_id</b> is null or empty."],
-            ["3", "replace_missing_with_label\nreplace_transport_unspecified",
-             "Fill null values in <b>transport_type</b> with 'unspecified'."],
-            ["4", "explode_multiple_columns\nexplode_patrol_columns",
-             "Explode both <b>patrol_id</b> and <b>participants</b> columns "
-             "(each row may link to multiple patrol IDs and participants). "
-             "reset_index: true."],
-        ],
-        [0.5*cm, 3.5*cm, W - 4*cm],
-    ),
-    sp(6),
-    h2("7.2  Fetching patrols and observations"),
-    make_table(
-        [
-            ["Step", "Task / id", "Detail"],
-            ["1", "get_patrol_values\nget_patrols_from_info",
-             "Look up patrol records in EarthRanger for each patrol ID "
-             "found in the <b>patrol_id</b> column. batch_size: 15."],
-            ["2", "custom_get_patrol_observations_from_patrols_df\nget_patrol_obs",
-             "Fetch patrol observation points for each patrol. "
-             "include_patrol_details: true, raise_on_empty: true, "
-             "sub_page_size: 150."],
-        ],
-        [0.5*cm, 3.5*cm, W - 4*cm],
-    ),
-    sp(6),
-    h2("7.3  Merging patrol info and processing relocations"),
-    make_table(
-        [
-            ["Step", "Task / id", "Detail"],
-            ["1", "map_columns\ndrop_values_patrol_info",
-             "From the exploded patrol info DataFrame, drop: geometry, "
-             "reported_by, index, serial_number. Rename: "
-             "authorized_by → authorized_by, event_details__updates → updates."],
-            ["2", "merge_dataframes\nmerge_patrol_events_obs",
-             "Left-join patrol observations (<b>get_patrol_obs</b>) with "
-             "the cleaned patrol info (<b>drop_values_patrol_info</b>) on "
-             "<b>patrol_id</b>. preserve_left_index: true."],
-            ["3", "process_relocations\nobs_relocs",
-             "Convert the merged observations to relocations, retaining: "
+            ["1", "filter_notna\nfilter_null_patrols",
+             "Remove rows where <b>patrol_id</b> is null."],
+            ["2", "fill_missing_values\nfill_transport_type",
+             "Fill null values in <b>transport_type</b> with "
+             "<b>'Undefined'</b>."],
+            ["3", "explode\nexplode_patrol_id",
+             "Explode the <b>patrol_id</b> column (reset_index: true; "
+             "a row may reference multiple patrol IDs)."],
+            ["4", "get_patrol_values\nget_patrol_event_values",
+             "Fetch patrol records from EarthRanger for each patrol ID "
+             "(max_workers: 10)."],
+            ["5", "get_patrol_observations_from_patrols_df\nget_patrol_obs",
+             "Fetch patrol observation points. include_patrol_details: "
+             "true, raise_on_empty: true, sub_page_size: 100."],
+            ["6", "map_columns\njoin_patrol_df",
+             "From explode_patrol_id, retain id, patrol_id, participants, "
+             "patrol_purpose, transport_type."],
+            ["7", "merge_two_dataframes\nmerge_patrol_df_obs",
+             "Merge get_patrol_obs (left) with join_patrol_df (right) on "
+             "<b>patrol_id</b>."],
+            ["8", "explode\nexplode_participants",
+             "Explode the <b>participants</b> column (reset_index: true)."],
+            ["9", "process_relocations\nobs_relocs",
+             "Convert the merged observations to relocations, retaining "
              "extra__id, extra__created_at, extra__subject_id, geometry, "
              "groupby_col, fixtime, junk_status, patrol_id, patrol_title, "
              "patrol_serial_number, patrol_start_time, patrol_end_time, "
-             "patrol_type, patrol_status, patrol_subject, patrol_type__value, "
-             "participants, purpose, transport_type. "
-             "Filter sentinel coordinates: (180,90), (0,0), (1,1)."],
-            ["4", "persist_df\npersist_relocs",
+             "patrol_type, patrol_status, patrol_subject, "
+             "patrol_type__value, participants, patrol_purpose, and "
+             "transport_type. Filters sentinel coordinates: (180, 90), "
+             "(0, 0), (1, 1)."],
+            ["10", "persist_df\npersist_relocs",
              "Write to <b>patrol_relocations.geoparquet</b>."],
         ],
-        [0.5*cm, 3.5*cm, W - 4*cm],
+        [0.7*cm, 3.5*cm, W - 4.2*cm],
     ),
     PageBreak(),
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 8. TRAJECTORY CONVERSION
+# 7. TRAJECTORY CONVERSION
 # ══════════════════════════════════════════════════════════════════════════════
 story += [
-    h1("8. Trajectory Conversion"),
+    h1("7. Trajectory Conversion"),
     hr(),
-    p("The relocations are split into three transport-type branches. Each "
-      "branch converts relocations to trajectory segments using "
-      "type-appropriate speed and distance filters, then adds a temporal "
-      "index and renames columns."),
+    p("The relocations are split into three transport-type branches on the "
+      "<b>transport_type</b> column. Each branch converts its relocations "
+      "to trajectory segments using type-appropriate speed and distance "
+      "filters, then adds a temporal index and renames columns."),
     sp(6),
-    h2("8.1  Transport-type filtering"),
+    h2("7.1  Transport-type filtering"),
     make_table(
         [
             ["Branch", "Task / id", "Filter"],
             ["Foot",      "filter_df\nfilter_foot_patrols",
-             "transport_type = 'foot'"],
+             "transport_type = 'Foot'"],
             ["Vehicle",   "filter_df\nfilter_vehicle_patrols",
-             "transport_type = 'vehicle'"],
+             "transport_type = 'Vehicle'"],
             ["Motorbike", "filter_df\nfilter_motor_patrols",
-             "transport_type = 'motorbike'"],
-            ["Unspecified", "filter_df\nfilter_unspecified_patrols",
-             "transport_type = 'unspecified' "
-             "(retained for potential future use; not further processed)"],
+             "transport_type = 'Motorbike'"],
         ],
         [2*cm, 3.5*cm, W - 5.5*cm],
     ),
     sp(6),
-    h2("8.2  Trajectory segment filters"),
+    h2("7.2  Trajectory segment filters (relocations_to_trajectory)"),
     make_table(
         [
             ["Parameter", "Foot", "Vehicle", "Motorbike"],
             ["min_length_meters",  "0.001",   "0.35",    "0.35"],
             ["max_length_meters",  "5 000",   "5 000",   "5 000"],
-            ["max_time_secs",      "14 400",  "18 000",  "18 000"],
             ["min_time_secs",      "1",       "1",       "1"],
-            ["max_speed_kmhr",     "9.0",     "100.0",   "100.0"],
+            ["max_time_secs",      "14 400",  "18 000",  "18 000"],
             ["min_speed_kmhr",     "0.5",     "10.0",    "10.0"],
+            ["max_speed_kmhr",     "9.0",     "100.0",   "100.0"],
         ],
         [4*cm, (W - 4*cm)/3, (W - 4*cm)/3, (W - 4*cm)/3],
     ),
     note("Foot patrols use a tighter speed envelope (0.5–9 km/h) and shorter "
          "maximum duration (4 h vs 5 h) than vehicle and motorbike patrols, "
-         "reflecting the expected pace of rangers on foot."),
+         "which use identical filter values to each other."),
     sp(6),
-    h2("8.3  Temporal indexing and column renaming"),
-    p("Each trajectory branch goes through two steps:"),
+    h2("7.3  Temporal indexing and column renaming"),
+    p("Each branch (foot_trajs / vehicle_trajs / motor_trajs) then goes "
+      "through two identical steps:"),
     make_table(
         [
             ["Step", "Task", "Detail"],
             ["1", "add_temporal_index\ntemporal_foot_traj / "
              "temporal_vehicle_traj / temporal_motor_traj",
-             "Add temporal index on <b>segment_start</b> column. "
+             "Add a temporal index on <b>segment_start</b>. "
              "cast_to_datetime: true, format: mixed."],
             ["2", "map_columns\nrename_foot_trajs / rename_vehicle_trajs / "
              "rename_motor_trajs",
-             "Drop: heading, extra__created_at, extra__id. "
-             "Rename extra__* columns to clean names: "
-             "patrol_start_time, patrol_end_time, patrol_id, "
-             "patrol_serial_number, patrol_status, patrol_subject_name, "
-             "patrol_title, patrol_type_id, patrol_type_value, subject_id."],
+             "Rename extra__* columns to clean names: created_at, id, "
+             "participants, patrol_end_time, patrol_id, patrol_purpose, "
+             "patrol_serial_number, patrol_start_time, patrol_status, "
+             "patrol_subject, patrol_title, patrol_type, "
+             "patrol_type_value, subject_id, transport_type. "
+             "raise_if_not_found: true."],
         ],
-        [0.5*cm, 5*cm, W - 5.5*cm],
+        [0.7*cm, 5*cm, W - 5.7*cm],
     ),
     PageBreak(),
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 9. PER-TYPE PATROL ANALYSIS
+# 8. PER-TYPE EFFORT SUMMARIES
 # ══════════════════════════════════════════════════════════════════════════════
 story += [
-    h1("9. Per-Type Patrol Analysis"),
+    h1("8. Per-Type Effort Summaries"),
     hr(),
-    p("Each of the three transport-type branches (foot, vehicle, motorbike) "
-      "follows an identical pipeline structure: effort summary → colormap → "
-      "column filter → GeoJSON → map layers → map render → HTML/PNG. "
-      "The per-type colour column names differ between branches."),
+    p("Each of the three transport-type branches is summarised identically "
+      "by <b>patrol_type_value</b> and persisted as CSV — no colormap or "
+      "geometry filtering happens at this stage; that is deferred to the "
+      "coverage-grid pipeline in Section 9."),
     sp(6),
-    h2("9.1  Effort summary"),
     make_table(
         [
-            ["Step", "Task / id (foot example)", "Detail"],
-            ["1", "summarize_df\nfoot_patrol_metrics",
-             "Group by <b>patrol_type_value</b>. Aggregate:\n"
-             "no_of_patrols = nunique(patrol_id)\n"
-             "distance_km = sum(dist_meters) m → km\n"
-             "duration_hrs = sum(timespan_seconds) s → h\n"
-             "average_speed = mean(speed_kmhr)"],
-            ["2", "add_totals_row\nadd_fp_metrics_totals",
-             "Add a 'Total' row labelled by patrol_type_value."],
-            ["3", "persist_df\npersist_foot_df",
-             "Write to <b>foot_patrol_efforts.csv</b> "
-             "(vehicle: vehicle_patrol_efforts.csv, "
-             "motorbike: motorbike_patrol_efforts.csv)."],
+            ["Branch", "Task / id", "Detail"],
+            ["Foot", "summarize_df\nfoot_patrol_metrics\n→ persist_df\n"
+             "persist_foot_df",
+             "no_of_patrols = nunique(patrol_id); distance_km = "
+             "sum(dist_meters) m→km; duration_hrs = sum(timespan_seconds) "
+             "s→h; average_speed = mean(speed_kmhr). "
+             "Write to foot_patrol_efforts.csv."],
+            ["Vehicle", "summarize_df\nvehicle_patrol_metrics\n→ persist_df\n"
+             "persist_vehicle_df",
+             "Same aggregations. Write to vehicle_patrol_efforts.csv."],
+            ["Motorbike", "summarize_df\nmotor_patrol_metrics\n→ persist_df\n"
+             "persist_motor_df",
+             "Same aggregations. Write to motorbike_patrol_efforts.csv."],
         ],
-        [0.5*cm, 3.5*cm, W - 4*cm],
+        [2*cm, 3.7*cm, W - 5.7*cm],
     ),
-    note("The same summarize_df / add_totals_row / persist_df pattern is "
-         "applied identically to vehicle (ids: vehicle_patrol_metrics, "
-         "add_vh_metrics_totals, persist_vehicle_df) and motorbike "
-         "(motor_patrol_metrics, add_mb_metrics_totals, persist_motor_df)."),
-    sp(6),
-    h2("9.2  Colormap application and column filtering"),
-    make_table(
-        [
-            ["Branch", "Task / id", "Input column", "Output column", "Colormap"],
-            ["Foot",
-             "apply_color_map\napply_footp_colormap",
-             "patrol_type_value", "foot_patrol_colors", "tab20"],
-            ["Vehicle",
-             "apply_color_map\napply_vehicle_colormap",
-             "patrol_type_value", "vehicle_patrol_colors", "tab20"],
-            ["Motorbike",
-             "apply_color_map\napply_motor_colormap",
-             "patrol_type_value", "motor_patrol_colors", "tab20"],
-        ],
-        [2*cm, 3*cm, 3*cm, 3*cm, W - 11*cm],
-    ),
-    sp(4),
-    p("After the colormap is applied, a <b>filter_columns</b> step retains "
-      "only the columns needed for GeoJSON persistence, significantly reducing "
-      "file size:"),
-    make_table(
-        [
-            ["Branch", "Task / id", "Columns retained"],
-            ["Foot",
-             "filter_columns\nfilter_foot_trajs",
-             "geometry, foot_patrol_colors, patrol_type_value"],
-            ["Vehicle",
-             "filter_columns\nfilter_vehicles_trajs",
-             "geometry, vehicle_patrol_colors, patrol_type_value"],
-            ["Motorbike",
-             "filter_columns\nfilter_motor_trajs",
-             "geometry, vehicle_patrol_colors, patrol_type_value"],
-        ],
-        [2*cm, 3*cm, W - 5*cm],
-    ),
-    note("The filter_columns task (exclude: null) keeps only the listed "
-         "columns and drops everything else. The filtered DataFrame is the "
-         "sole input to gdf_to_geojson; the full colormapped DataFrame "
-         "is still passed to create_geojson_layer for legend and property "
-         "lookups."),
     PageBreak(),
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 10. TRAJECTORY MAP PIPELINE
+# 9. COVERAGE-GRID MAP PIPELINE
 # ══════════════════════════════════════════════════════════════════════════════
 story += [
-    h1("10. Trajectory Map Pipeline"),
+    h1("9. Coverage-Grid Map Pipeline"),
     hr(),
-    p("Each patrol type (foot, vehicle, motorbike) follows the same map "
-      "pipeline after column filtering. The foot patrol pipeline is described "
-      "here; vehicle and motorbike are identical except for the task IDs and "
-      "colour column references."),
+    p("Each of the three renamed trajectory branches — and, after "
+      "concatenation, the combined dataset — goes through an identical "
+      "grid, classification, colormap, and map-rendering pipeline. The "
+      "foot branch is described here; vehicle, motorbike, and the "
+      "combined ('overall') branch are identical except for task ids "
+      "and output titles."),
     sp(6),
     make_table(
         [
             ["Step", "Task / id (foot example)", "Detail"],
-            ["1", "gdf_to_geojson\npersist_foot_geojson",
-             "Persist the filtered trajectory GDF as "
-             "<b>foot_patrol_trajectories.geojson</b>."],
-            ["2", "create_geojson_layer\ngenerate_foot_layers",
-             "Build a DeckGL GeoJSON layer. Colour source: "
-             "properties.foot_patrol_colors. Line width 1.55 px, "
-             "opacity 0.55. Legend: title = 'Patrol Type', "
-             "label_column = patrol_type_value, "
-             "color_column = foot_patrol_colors, sort: ascending. "
-             "geodataframe = apply_footp_colormap.return (full dataset "
-             "for legend enumeration), data_url = persist_foot_geojson.return."],
-            ["3", "combine_deckgl_map_layers\ncombine_foot_layers",
-             "Combine static layers (conservancy boundaries, parcels, text) "
-             "with the foot trajectory group layer."],
-            ["4", "draw_map\ndraw_foot_map",
-             "Render the map using the ArcGIS hillshade tile layer, "
-             "view state from global_zoom_value, max_zoom: 10, "
-             "legend placement: bottom-right."],
-            ["5", "rewrite_file_urls_for_screenshots\nrewrite_foot_patrol_urls",
-             "Rewrite the GeoJSON file URL in the HTML so it can be "
-             "resolved during headless screenshot rendering."],
-            ["6", "persist_text\npersist_foot_urls",
-             "Write the modified HTML to <b>foot_patrols_map.html</b>."],
-            ["7", "html_to_png\nconvert_foot_png",
-             "Render the HTML to <b>foot_patrols_map.png</b>. "
-             "device_scale_factor: 2.0, wait_for_timeout: 40 000 ms, "
-             "serve_local_files: true, full_page: false."],
+            ["1", "create_patrol_coverage_grid\nfoot_patrol_coverage",
+             "Overlay trajectories onto a 1 000 m grid clipped to "
+             "filter_conservancy_boundary. Each cell records "
+             "unique_patrol_count, time_spent_seconds/hours, and "
+             "distance_patrolled_meters/km. keep_empty_cells: false."],
+            ["2", "reproject_gdf\nreproject_foot",
+             "Reproject the grid to EPSG:4326."],
+            ["3", "apply_classification\napply_foot_class_grid",
+             "Equal-interval classification of unique_patrol_count, "
+             "k = 5 bins, output column density_bins."],
+            ["4", "apply_color_map\napply_foot_grid_colormap",
+             "Apply the RdYlGn colormap to density_bins, writing "
+             "density_colors."],
+            ["5", "create_geojson_layer\ngenerate_foot_grid_layer",
+             "Build the DeckGL grid layer (opacity 0.55, fill from "
+             "density_colors). Legend: title 'Grid Cell Visits', "
+             "label_column density_bins, color_column density_colors."],
+            ["6", "combine_deckgl_map_layers\ncombine_foot_patrol",
+             "Combine the grid layer with the shared parcels and "
+             "conservancy boundary static layers."],
+            ["7", "draw_map\ndraw_foot_map",
+             "Render using the ArcGIS hillshade/boundary tile layers, "
+             "view state from gdf_image_extent, max_zoom: 10, legend "
+             "placement bottom-right."],
+            ["8", "persist_text\npersist_foot_urls",
+             "Write to foot_patrol_map.html."],
+            ["9", "html_to_png\nconvert_foot_png",
+             "Render to PNG. full_page: false, device_scale_factor: 2.0, "
+             "wait_for_timeout: 40 000 ms, max_concurrent_pages: 1."],
+            ["10", "create_map_widget_single_view\nfoot_map_widget",
+             "Title 'Foot Patrol Coverage Map'. Wraps the persisted map "
+             "HTML for the results dashboard."],
         ],
-        [0.5*cm, 4*cm, W - 4.5*cm],
+        [0.7*cm, 4.3*cm, W - 5*cm],
     ),
-    note("The serve_local_files: true flag on html_to_png is required because "
-         "the GeoJSON data URL is a local file path. This flag is set on all "
-         "three patrol map conversions."),
+    note("The 40 000 ms wait_for_timeout on every map's html_to_png step "
+         "gives deck.gl time to finish loading basemap tiles before the "
+         "screenshot is taken; the events chart, which has no tiles to "
+         "load, uses 10 ms instead."),
     PageBreak(),
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 11. COMBINED TRAJECTORIES AND OVERALL PATROL EFFORT
+# 10. COMBINED TRAJECTORIES AND OVERALL PATROL EFFORT
 # ══════════════════════════════════════════════════════════════════════════════
 story += [
-    h1("11. Combined Trajectories and Overall Patrol Effort"),
+    h1("10. Combined Trajectories and Overall Patrol Effort"),
     hr(),
-    p("After all three per-type trajectory branches complete, their raw "
-      "trajectories (before column filtering) are merged into a single "
-      "dataset for combined analysis."),
+    p("After the three renamed trajectory branches complete, they are "
+      "concatenated and run through the same coverage-grid pipeline as "
+      "Section 9 to produce the combined ('overall') map, and separately "
+      "summarised per ranger."),
     sp(6),
-    h2("11.1  Merging trajectories"),
+    h2("10.1  Concatenation and overall coverage grid"),
     make_table(
         [
             ["Step", "Task / id", "Detail"],
-            ["1", "ecoscope_workflows_ext_mnc.tasks.merge_multiple_df\nmerge_trajs",
-             "Concatenate foot_trajs, vehicle_trajs, and motor_trajs "
-             "(raw, pre-filter). ignore_index: true, sort: false."],
-            ["2", "map_columns\nrename_combined_trajs",
-             "Drop: heading, extra__created_at, extra__id. "
-             "Rename extra__* columns to clean names (same mapping as "
-             "per-type rename steps), plus "
-             "extra__participants → participants."],
+            ["1", "concatenate_dataframes\nconcat_dataframes",
+             "Concatenate rename_foot_trajs, rename_vehicle_trajs, and "
+             "rename_motor_trajs. axis: 0, join: outer, ignore_index: "
+             "true, sort: false."],
+            ["2", "create_patrol_coverage_grid\noverall_patrol_coverage\n"
+             "→ reproject_gdf\nreproject_overall",
+             "Same grid/reprojection as each per-type branch, applied to "
+             "the concatenated dataset. Feeds the classification/colormap/"
+             "map pipeline that produces overall_patrol_map.html / .png "
+             "and the 'Overall Patrol Coverage Map' widget (ov_map_widget)."],
             ["3", "persist_df\npersist_trajectories_data",
-             "Write merged trajectories to "
+             "Write reproject_overall — the reprojected overall coverage "
+             "grid, not the raw concatenated trajectories — to "
              "<b>patrol_trajectories.geoparquet</b>."],
         ],
-        [0.5*cm, 4*cm, W - 4.5*cm],
+        [0.7*cm, 4*cm, W - 4.7*cm],
     ),
+    note("persist_trajectories_data persists reproject_overall (the grid), "
+         "not concat_dataframes (the raw trajectories) — despite the "
+         "filename, patrol_trajectories.geoparquet contains grid-cell "
+         "coverage statistics, not per-segment trajectory geometries."),
     sp(6),
-    h2("11.2  Overall patrol effort (per-ranger summary)"),
+    h2("10.2  Overall patrol effort (per-ranger summary)"),
     make_table(
         [
             ["Step", "Task / id", "Detail"],
             ["1", "summarize_df\nranger_patrol_metrics",
-             "Group by <b>participants</b>. Aggregate (2 d.p.):\n"
-             "no_of_patrols = nunique(patrol_id) [0 d.p.]\n"
-             "distance_km = sum(dist_meters) m → km [2 d.p.]\n"
-             "duration_hrs = sum(timespan_seconds) s → h [2 d.p.]"],
-            ["2", "replace_missing_with_label\nreplace_ranger_nulls",
-             "Fill null values in <b>participants</b> with 'Unspecified'."],
-            ["3", "add_totals_row\nadd_ranger_metrics_totals",
-             "Add a 'Total' row labelled by participants."],
+             "Group concat_dataframes by <b>participants</b>. "
+             "number_of_patrols = nunique(patrol_id) [0 d.p.]; "
+             "distance_km = sum(dist_meters) m→km [2 d.p.]; "
+             "duration_hours = sum(timespan_seconds) s→h [2 d.p.]."],
+            ["2", "fill_missing_values\nfill_participants",
+             "Fill null <b>participants</b> with 'Undefined'."],
+            ["3", "convert_columns_to_int\nno_of_patrols_int",
+             "Convert number_of_patrols to int (errors: coerce, "
+             "fill_value: 0)."],
             ["4", "persist_df\npersist_total_df",
              "Write to <b>overall_patrol_efforts.csv</b>."],
+            ["5", "draw_table\npatrol_efforts_table_html\n→ persist_text\n"
+             "patrol_efforts_table_url\n→ create_table_widget_single_view\n"
+             "patrol_efforts_table_widget",
+             "Render, persist, and wrap as a dashboard widget titled "
+             "'Overall Patrol Efforts'."],
         ],
-        [0.5*cm, 3.5*cm, W - 4*cm],
+        [0.7*cm, 3.5*cm, W - 4.2*cm],
     ),
     PageBreak(),
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 12. PATROL COVERAGE ANALYSIS
+# 11. CONSERVANCY OCCUPANCY
 # ══════════════════════════════════════════════════════════════════════════════
 story += [
-    h1("12. Patrol Coverage Analysis"),
+    h1("11. Conservancy Occupancy"),
     hr(),
-    p("This section uses the combined renamed trajectories "
-      "(<b>rename_combined_trajs</b>) to compute how uniformly rangers "
-      "patrolled the conservancy during the period."),
+    p("This section computes what fraction of the conservancy boundary was "
+      "actually patrolled, using the overall (combined) coverage grid."),
     sp(6),
     make_table(
         [
             ["Step", "Task / id", "Detail"],
-            ["1", "create_patrol_coverage_grid\npatrol_grid_visits",
-             "Compute a 1 000 m square coverage grid. Each cell records "
-             "<b>unique_patrol_count</b> — the number of distinct patrols "
-             "that passed through it."],
-            ["2", "apply_classification\napply_classification_grid",
-             "Apply equal-interval classification to <b>unique_patrol_count</b> "
-             "with k = 5 bins. Output column: <b>density_bins</b>. "
-             "label_ranges: false, label_decimals: 1."],
-            ["3", "apply_color_map\napply_grid_colormap",
-             "Apply the <b>RdYlGn_r</b> colormap to <b>density_bins</b>, "
-             "writing colours to <b>density_colors</b>."],
-            ["4", "create_geojson_layer\ngenerate_grid_layers",
-             "Build a DeckGL GeoJSON layer for the grid. Fill and line colour "
-             "from density_colors (property reference). Opacity: 0.75, "
-             "line colour: [0,0,0], data_url: null (embedded). "
-             "Legend: title = 'Visits', label_column = density_bins, "
-             "color_column = density_colors."],
-            ["5", "combine_deckgl_map_layers\ncombine_grid_layers",
-             "Combine static layers (conservancy boundaries, parcels, text) "
-             "with the grid layer."],
-            ["6", "draw_map\ndraw_grid_map",
-             "Render the coverage map using the ArcGIS hillshade tile layer, "
-             "view state from global_zoom_value, max_zoom: 10, "
-             "legend placement: bottom-right."],
-            ["7", "persist_text\npersist_grid_urls",
-             "Write map HTML to <b>patrol_coverage_map.html</b>."],
-            ["8", "html_to_png\nconvert_grid_png",
-             "Render to <b>patrol_coverage_map.png</b>. "
-             "device_scale_factor: 2.0, wait_for_timeout: 40 000 ms."],
-            ["9", "compute_occupancy\ncompute_patrol_occupancy",
-             "Calculate what percentage of the conservancy area (from "
-             "<b>conservancy_gdf</b>) is covered by the patrol grid cells. "
-             "crs: epsg:4326."],
-            ["10", "round_values\nround_off_patrol",
-             "Round <b>occupancy_percentage</b> to 2 decimal places."],
-            ["11", "persist_df\npersist_occupancy_df",
+            ["1", "reproject_gdf\nreproject_conservancy",
+             "Reproject filter_conservancy_boundary to EPSG:3857 (metres)."],
+            ["2", "ecoscope_workflows_ext_mnc.tasks.io.\n"
+             "compute_patrol_occupancy\ncompute_cons_occupancy",
+             "For each conservancy region, intersect its area with the "
+             "unioned overall_patrol_coverage geometry. Both inputs must "
+             "share a projected, metre-based CRS. Returns "
+             "conservancy_name, conservancy_area_sqkm, "
+             "patrolled_area_sqkm, and occupancy_percentage (rounded to "
+             "2 d.p.) per region."],
+            ["3", "persist_df\npersist_occupancy_df",
              "Write to <b>patrol_coverage.csv</b>."],
+            ["4", "draw_table\noccupancy_table_html\n→ persist_text\n"
+             "occupancy_table_url\n→ create_table_widget_single_view\n"
+             "occupancy_table_widget",
+             "Render, persist, and wrap as a dashboard widget titled "
+             "'Conservancy Patrol Occupancy'."],
         ],
-        [0.5*cm, 4*cm, W - 4.5*cm],
+        [0.7*cm, 4*cm, W - 4.7*cm],
     ),
+    note("compute_patrol_occupancy raises a ValueError if either input "
+         "GeoDataFrame lacks a CRS or is in a geographic (degree-based) "
+         "CRS — both conservancies and patrol_coverage must already be "
+         "reprojected to a projected, metre-based CRS before this task "
+         "runs."),
+    PageBreak(),
+]
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 12. RESULTS DASHBOARD
+# ══════════════════════════════════════════════════════════════════════════════
+story += [
+    h1("12. Results Dashboard"),
+    hr(),
+    p("The final step, <b>gather_dashboard</b> (id: "
+      "<b>mnc_events_dashboard</b>), assembles the workflow details, time "
+      "range, groupers, and every widget built in the sections above into "
+      "a single dashboard. Widgets are included in this order:"),
+    sp(4),
+    make_table(
+        [
+            ["#", "Widget id", "Type", "Title"],
+            ["1", "foot_map_widget",            "Map",   "Foot Patrol Coverage Map"],
+            ["2", "vh_map_widget",              "Map",   "Vehicle Patrol Coverage Map"],
+            ["3", "mr_map_widget",              "Map",   "Motorbike Patrol Coverage Map"],
+            ["4", "ov_map_widget",              "Map",   "Overall Patrol Coverage Map"],
+            ["5", "events_chart_widget",        "Chart", "Total Events Recorded"],
+            ["6", "patrol_summary_table_widget","Table", "Patrol Purpose Summary"],
+            ["7", "patrol_efforts_table_widget","Table", "Overall Patrol Efforts"],
+            ["8", "occupancy_table_widget",     "Table", "Conservancy Patrol Occupancy"],
+        ],
+        [1*cm, 5.5*cm, 2.2*cm, W - 8.7*cm],
+    ),
+    sp(4),
+    p("Every map and chart widget takes a path to precomputed HTML "
+      "(created via persist_text on the corresponding draw_map / "
+      "draw_line_chart output); every table widget takes a path to HTML "
+      "rendered by draw_table from the relevant summary dataframe."),
     PageBreak(),
 ]
 
@@ -851,7 +787,7 @@ story += [
         [
             ["File", "Format", "Description"],
             ["total_events_recorded_by_date.csv",  "CSV",
-             "Daily event counts (all non-excluded types) with totals row"],
+             "Daily event counts (all non-excluded types)"],
             ["total_events_recorded_by_type.csv",  "CSV",
              "Daily event counts by event_type"],
             ["total_events_recorded.html",          "HTML",
@@ -866,8 +802,12 @@ story += [
     make_table(
         [
             ["File", "Format", "Description"],
+            ["patrol_events.csv", "CSV",
+             "Flattened patrol_info event details"],
             ["patrol_purpose_summary.csv", "CSV",
-             "Patrol count and distance km by patrol purpose, with totals row"],
+             "Patrol count by patrol purpose"],
+            ["patrol_purpose_summary_table.html", "HTML",
+             "Rendered table backing the dashboard widget"],
         ],
         [5.5*cm, 1.5*cm, W - 7*cm],
     ),
@@ -877,92 +817,52 @@ story += [
         [
             ["File", "Format", "Description"],
             ["patrol_relocations.geoparquet", "GeoParquet",
-             "Full observation dataset: all patrol types, with patrol metadata "
-             "columns (patrol_id, patrol_title, patrol_type, purpose, "
-             "transport_type, participants, etc.)"],
+             "Full observation dataset: all patrol types, with patrol "
+             "metadata columns (patrol_id, patrol_title, patrol_type, "
+             "patrol_purpose, transport_type, participants, etc.)"],
         ],
         [5.5*cm, 1.5*cm, W - 7*cm],
     ),
     sp(4),
-    h2("13.4  Foot patrols"),
+    h2("13.4  Per-type patrol effort and coverage"),
     make_table(
         [
             ["File", "Format", "Description"],
-            ["foot_patrol_efforts.csv",        "CSV",
-             "patrol_type_value × no_of_patrols, distance_km, "
-             "duration_hrs, average_speed. With totals row."],
-            ["foot_patrol_trajectories.geojson", "GeoJSON",
-             "Foot trajectory line geometries; properties: "
-             "foot_patrol_colors, patrol_type_value"],
-            ["foot_patrols_map.html",            "HTML",
-             "Interactive foot patrol map (tab20 coloured by patrol type)"],
-            ["foot_patrols_map.png",             "PNG",
-             "Static version of the foot patrol map"],
+            ["foot_patrol_efforts.csv",     "CSV",
+             "Foot: patrol count, distance km, duration hrs, average speed"],
+            ["foot_patrol_map.html / .png", "HTML / PNG",
+             "Foot patrol coverage-grid map (RdYlGn)"],
+            ["vehicle_patrol_efforts.csv",  "CSV",
+             "Vehicle: patrol count, distance km, duration hrs, average speed"],
+            ["vehicle_patrol_map.html / .png", "HTML / PNG",
+             "Vehicle patrol coverage-grid map (RdYlGn)"],
+            ["motorbike_patrol_efforts.csv", "CSV",
+             "Motorbike: patrol count, distance km, duration hrs, average speed"],
+            ["motor_patrol_map.html / .png", "HTML / PNG",
+             "Motorbike patrol coverage-grid map (RdYlGn)"],
         ],
-        [5.5*cm, 1.5*cm, W - 7*cm],
+        [5.5*cm, 2.2*cm, W - 7.7*cm],
     ),
     sp(4),
-    h2("13.5  Vehicle patrols"),
-    make_table(
-        [
-            ["File", "Format", "Description"],
-            ["vehicle_patrol_efforts.csv",        "CSV",
-             "patrol_type_value × no_of_patrols, distance_km, "
-             "duration_hrs, average_speed. With totals row."],
-            ["vehicle_patrol_trajectories.geojson", "GeoJSON",
-             "Vehicle trajectory line geometries; properties: "
-             "vehicle_patrol_colors, patrol_type_value"],
-            ["vehicle_patrols_map.html",            "HTML",
-             "Interactive vehicle patrol map (tab20 coloured by patrol type)"],
-            ["vehicle_patrols_map.png",             "PNG",
-             "Static version of the vehicle patrol map"],
-        ],
-        [5.5*cm, 1.5*cm, W - 7*cm],
-    ),
-    sp(4),
-    h2("13.6  Motorbike patrols"),
-    make_table(
-        [
-            ["File", "Format", "Description"],
-            ["motorbike_patrol_efforts.csv",        "CSV",
-             "patrol_type_value × no_of_patrols, distance_km, "
-             "duration_hrs, average_speed. With totals row."],
-            ["motor_patrol_trajectories.geojson", "GeoJSON",
-             "Motorbike trajectory line geometries; properties: "
-             "vehicle_patrol_colors, patrol_type_value"],
-            ["motorbike_patrols_map.html",            "HTML",
-             "Interactive motorbike patrol map (tab20 coloured by patrol type)"],
-            ["motorbike_patrols_map.png",             "PNG",
-             "Static version of the motorbike patrol map"],
-        ],
-        [5.5*cm, 1.5*cm, W - 7*cm],
-    ),
-    sp(4),
-    h2("13.7  Combined trajectories and overall effort"),
+    h2("13.5  Combined trajectories, overall effort, and coverage"),
     make_table(
         [
             ["File", "Format", "Description"],
             ["patrol_trajectories.geoparquet", "GeoParquet",
-             "Merged foot + vehicle + motorbike trajectory dataset "
-             "with renamed columns"],
+             "Reprojected overall coverage grid (foot + vehicle + "
+             "motorbike combined)"],
             ["overall_patrol_efforts.csv", "CSV",
-             "participants × no_of_patrols, distance_km, duration_hrs; "
-             "nulls replaced with 'Unspecified'. With totals row."],
-        ],
-        [5.5*cm, 1.5*cm, W - 7*cm],
-    ),
-    sp(4),
-    h2("13.8  Patrol coverage"),
-    make_table(
-        [
-            ["File", "Format", "Description"],
-            ["patrol_coverage_map.html", "HTML",
-             "Interactive 1 000 m grid-cell visit density map (RdYlGn_r)"],
-            ["patrol_coverage_map.png",  "PNG",
-             "Static version of the coverage map"],
-            ["patrol_coverage.csv",      "CSV",
+             "Per-ranger patrol count, distance km, duration hrs; nulls "
+             "replaced with 'Undefined'"],
+            ["overall_patrol_efforts_table.html", "HTML",
+             "Rendered table backing the dashboard widget"],
+            ["overall_patrol_map.html / .png", "HTML / PNG",
+             "Combined 1 000 m grid-cell visit density map (RdYlGn)"],
+            ["patrol_coverage.csv", "CSV",
              "Patrol occupancy percentage per conservancy region "
              "(2 decimal places)"],
+            ["patrol_coverage_table.html", "HTML",
+             "Rendered table backing the dashboard widget"],
         ],
         [5.5*cm, 1.5*cm, W - 7*cm],
     ),
@@ -970,68 +870,33 @@ story += [
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 14. EXECUTION LOGIC AND SKIP CONDITIONS
+# 14. SOFTWARE VERSIONS
 # ══════════════════════════════════════════════════════════════════════════════
 story += [
-    h1("14. Execution Logic and Skip Conditions"),
+    h1("14. Software Versions"),
     hr(),
-    p("All event-data tasks (from <b>get_events_data</b> onward) and all "
-      "patrol-data tasks carry explicit <b>skipif</b> blocks with two "
-      "conditions:"),
-    make_table(
-        [
-            ["Condition", "Meaning"],
-            ["any_is_empty_df",
-             "Skip this task if any upstream DataFrame input is empty. "
-             "Prevents errors when no events or patrols exist for the "
-             "analysis period."],
-            ["any_dependency_skipped",
-             "Skip this task if any upstream task was itself skipped. "
-             "Propagates the skip state through dependent branches without "
-             "requiring explicit wiring."],
-        ],
-        [4*cm, W - 4*cm],
-    ),
+    p("Duplicated from Section 2.1 for reference — see spec.yaml for the "
+      "authoritative, current requirement pins."),
     sp(4),
-    p("The geospatial asset pipeline tasks (Dropbox downloads, gpkg loading, "
-      "layer building) do <b>not</b> carry skipif blocks — they run "
-      "unconditionally on every workflow execution."),
-    sp(4),
-    p("The <b>merge_trajs</b> task (merging foot, vehicle, motorbike "
-      "trajectories into the combined dataset) also does not carry a skipif "
-      "block — it is always attempted. If any individual trajectory branch "
-      "was skipped, that branch's output will simply be absent from the merge."),
-    sp(4),
-    note("The <b>filter_unspecified_patrols</b> branch filters observations "
-         "with transport_type = 'unspecified' but does not have any downstream "
-         "trajectory or map steps. Records with unspecified transport type "
-         "are excluded from all trajectory maps and effort summaries."),
-    PageBreak(),
-]
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 15. SOFTWARE VERSIONS
-# ══════════════════════════════════════════════════════════════════════════════
-story += [
-    h1("15. Software Versions"),
-    hr(),
     make_table(
         [
             ["Package", "Version constraint", "Channel"],
-            ["ecoscope-workflows-core",        "0.22.17.*",
+            ["ecoscope-platform", ">=2.15.0, <2.16.0",
              "https://repo.prefix.dev/ecoscope-workflows/"],
-            ["ecoscope-workflows-ext-ecoscope","0.22.17.*",
-             "https://repo.prefix.dev/ecoscope-workflows/"],
-            ["ecoscope-workflows-ext-custom",  "0.0.45.*",
+            ["ecoscope-workflows-ext-custom", "0.1.0rc14.*",
              "https://repo.prefix.dev/ecoscope-workflows-custom/"],
-            ["ecoscope-workflows-ext-ste",     "0.0.19.*",
+            ["ecoscope-workflows-ext-ste", "0.0.0rc1.*",
              "https://repo.prefix.dev/ecoscope-workflows-custom/"],
-            ["ecoscope-workflows-ext-mep",     "0.0.14.*",
+            ["ecoscope-workflows-ext-wwf-virunga", "0.0.0rc9.*",
              "https://repo.prefix.dev/ecoscope-workflows-custom/"],
-            ["ecoscope-workflows-ext-mnc",     "0.0.8.*",
+            ["ecoscope-workflows-ext-big-life", "1.0.1.*",
              "https://repo.prefix.dev/ecoscope-workflows-custom/"],
+            ["ecoscope-workflows-ext-mnc", "1.0.2.*",
+             "https://repo.prefix.dev/ecoscope-workflows-custom/"],
+            ["pydeck", "0.9.2", "conda-forge"],
+            ["opentelemetry-sdk", ">=1.20.0, <2.0.0", "conda-forge"],
         ],
-        [5*cm, 3*cm, W - 8*cm],
+        [5.5*cm, 3.2*cm, W - 8.7*cm],
     ),
 ]
 
