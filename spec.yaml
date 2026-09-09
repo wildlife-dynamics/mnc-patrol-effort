@@ -39,7 +39,7 @@ task-instance-defaults:
       - any_dependency_skipped 
 
 workflow:
-  - name: Set Workflow Details
+  - name: Workflow Details
     id: workflow_details
     task: set_workflow_details
 
