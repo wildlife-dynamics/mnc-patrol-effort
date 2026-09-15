@@ -1031,6 +1031,33 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    rename_patrol_summary_display = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("rename_patrol_summary_display")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            raise_if_not_found=True,
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "patrol_purpose": "Patrol Purpose",
+                "number_of_patrols": "Number of Patrols",
+            },
+            df=patrol_info_summary,
+            **(params.get("rename_patrol_summary_display") or {}),
+        )
+        .call()
+    )
+
     patrol_summary_table_html = (
         task(draw_table)
         .validate()
@@ -1045,7 +1072,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            dataframe=patrol_info_summary,
+            dataframe=rename_patrol_summary_display,
             columns=None,
             table_config={
                 "enable_sorting": True,
@@ -3092,6 +3119,35 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    rename_patrol_efforts_display = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("rename_patrol_efforts_display")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            raise_if_not_found=True,
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "participants": "Participants",
+                "number_of_patrols": "Number of Patrols",
+                "distance_km": "Distance(Km)",
+                "duration_hours": "Duration(Hours)",
+            },
+            df=no_of_patrols_int,
+            **(params.get("rename_patrol_efforts_display") or {}),
+        )
+        .call()
+    )
+
     patrol_efforts_table_html = (
         task(draw_table)
         .validate()
@@ -3106,7 +3162,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            dataframe=no_of_patrols_int,
+            dataframe=rename_patrol_efforts_display,
             columns=None,
             table_config={
                 "enable_sorting": True,
@@ -3228,6 +3284,35 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    rename_occupancy_display = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("rename_occupancy_display")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            raise_if_not_found=True,
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "conservancy_name": "Conservancy Name",
+                "conservancy_area_sqkm": "Conservancy Area(Km2)",
+                "patrolled_area_sqkm": "Patrolled Area(Km2)",
+                "occupancy_percentage": "Occupancy(%)",
+            },
+            df=compute_cons_occupancy,
+            **(params.get("rename_occupancy_display") or {}),
+        )
+        .call()
+    )
+
     occupancy_table_html = (
         task(draw_table)
         .validate()
@@ -3242,7 +3327,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            dataframe=compute_cons_occupancy,
+            dataframe=rename_occupancy_display,
             columns=None,
             table_config={
                 "enable_sorting": True,
