@@ -1,21 +1,10 @@
-name:  # Title Case, e.g. "My Ecoscope Workflow Template"
-
-# at least one author is required
+name: MNC Patrol Effort
 author:
-  - name: ""
-    organization: ""
-    email: ""
+  - name: Tevin Temu
+    organization: Wildlife Dynamics
+    email: tevin@wildlifedynamics.com
 
-description: # A short description
-
-# todo: add example
-theory: "" # optional
-
-# todo: add example
-output_comment: "" # optional
-
-# optional
-# example
-# citation: 
-#   - Wu, Y. et al. (2025). "Monitoring elephant spatial patterns with Ecoscope workflows."
-citation: [] 
+description: Processes Mara North Conservancy patrol events and observations from EarthRanger and produces foot, vehicle, motorbike, and overall patrol coverage maps, patrol effort summaries, conservancy patrol occupancy, and an events overview, on an interactive dashboard.
+theory: "Patrol observations are split by transport type and converted to trajectory segments with mode-specific speed limits (foot 0.5 to 9 km/h; vehicle and motorbike 10 to 100 km/h). Coverage is mapped by counting patrol visits in a 1 km grid over the conservancy, per mode and overall, with visit counts classified into 5 equal-interval bins. Effort is summarised as patrol count, distance, duration, and average speed per mode, and as patrols, distance, and duration per ranger. Conservancy patrol occupancy is the percentage of the conservancy covered by the overall coverage grid. Events other than distance-count and airstrip operations are also summarised by date and type."
+output_comment: "Outputs an 8-widget dashboard with foot, vehicle, motorbike, and overall patrol coverage maps, a daily events line chart, and patrol purpose, per-ranger patrol effort, and conservancy occupancy tables. Also writes events by date and type, patrol events, patrol purpose, per-mode and per-ranger effort, and patrol coverage tables (CSV), patrol relocations and the overall coverage grid (GeoParquet), and HTML and PNG copies of every map and the events chart."
+citation: []
